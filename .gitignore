@@ -1,0 +1,90 @@
+# ---- Visual Studio ----
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.VC.opendb
+*.ipch
+ipch/
+*.aps
+*.ncb
+*.opendb
+*.sdf
+*.opensdf
+*.cachefile
+
+# ---- Build output ----
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Bb]in/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+out/
+cmake-build-*/
+
+# ---- CMake ----
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+_deps/
+
+# ---- Compiled artifacts ----
+*.obj
+*.o
+*.exe
+*.dll
+*.so
+*.dylib
+*.lib
+*.a
+*.pdb
+*.ilk
+*.idb
+*.exp
+*.tlog
+*.log
+*.pch
+*.res
+
+# ---- Unreal Engine (Phase 4) ----
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+*.VC.db
+*.opensdf
+*.sln
+*.suo
+*.xcodeproj
+*.xcworkspace
+
+# ---- Package managers ----
+vcpkg_installed/
+packages/
+
+# ---- OS ----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# ---- Obsidian (this vault) ----
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.trash/
+
+# NOTE: SFML/engine dependencies should be fetched by vcpkg or CMake FetchContent,
+# not committed. If you must commit them, un-ignore explicitly below.
