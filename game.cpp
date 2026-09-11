@@ -49,7 +49,7 @@ Game::Game()
 	, timeRemaining(MAX_TIME)
 	, cloudActive(false)
 	, logActive(false)
-	, gamePaused(true)
+	, gamePaused(true) 
 	, playerSide(side::Left)
 	, branchPosition{
 		side::None
