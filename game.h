@@ -1,36 +1,52 @@
 #pragma once
-#include <SFML/Graphics.hpp>
-#include <SFML/Audio.hpp>
+#include <SFML/Graphics/RenderWindow.hpp>
+#include <SFML/Graphics/Sprite.hpp>
+#include <SFML/Graphics/Text.hpp>
+#include <SFML/Graphics/Font.hpp>
+#include <SFML/Graphics/Texture.hpp>
+#include <SFML/System/Time.hpp>
+#include <SFML/Graphics/RectangleShape.hpp>
+#include <SFML/Audio/SoundBuffer.hpp>
 #include <array>
-#include <ctime>
+#include <random>
 
 
 enum class side { Left, Right, None };
-constexpr const int NUM_BRANCHES = 6;
-void setText(sf::Text& message, std::string text, float x, float y);
-void setPlayerAndAxe(sf::Sprite& player, sf::Sprite& axe, side side);
-const float PLAYER_POSITION_RIGHT = 1250.f;
-const float PLAYER_POSITION_LEFT = 630.f;
-const float AXE_POSITION_RIGHT = 1075.f;
-const float AXE_POSITION_LEFT = 700.f;
-const float LOG_SPEED_X = 2000.f;
-const float LOG_SPEED_Y = 500.f;
-const float MAX_TIME = 10.f;
+constexpr int NUM_BRANCHES = 6;
+constexpr float PLAYER_POSITION_RIGHT = 1250.f;
+constexpr float PLAYER_POSITION_LEFT = 630.f;
+constexpr float PLAYER_POSITION_Y = 700.f;
+constexpr float AXE_POSITION_RIGHT = 1075.f;
+constexpr float AXE_POSITION_LEFT = 700.f;
+constexpr float AXE_POSITION_Y = 830.f;
+constexpr float LOG_SPEED_X = 2000.f;
+constexpr float LOG_SPEED_Y = 500.f;
+constexpr float LOG_POSITION_X = 800.f;
+constexpr float LOG_POSITION_Y = 760.f;
+constexpr float WINDOW_WIDTH = 1920.f;
+constexpr float WINDOW_HEIGHT = 1080.f;
+constexpr float MAX_TIME = 10.0f;
 constexpr float timeBarStartWidth = 400.f;
 constexpr float timeBarHeight = 80.f;
+constexpr float timeBarWidthPerSecond = timeBarStartWidth / MAX_TIME;
 
 class Game {
 public:
 	Game();
 	void run();
-
+private:
 	void update(sf::Time elapsedTime);
 	void render();
 	void processEvent();
 	void reset();
 	void updateStatistics(sf::Time elapsedTime);
 	void updateBranches();
+	
+	
 
+
+private:
+	void chop(side chopSide);
 private:
 	sf::RenderWindow window;
 	sf::Clock clock;
@@ -57,15 +73,15 @@ private:
 	sf::SoundBuffer chopBuffer;
 	sf::SoundBuffer deathBuffer;
 	sf::SoundBuffer ootBuffer;
+	sf::Sound chopSound;
+	sf::Sound deathSound;
+	sf::Sound ootSound;
 
 	sf::Text scoreText;
 	sf::Text message;
 	sf::Text statisticText;
 
-	sf::Sound chopSound;
-	sf::Sound deathSound;
-	sf::Sound ootSound;
-
+	
 	int statisticNumFrame;
 	int score;
 
@@ -74,7 +90,6 @@ private:
 	float cloudSpeed;
 	float timeRemaining;
 
-	float timeBarWidthPerSecond;
 
 	bool cloudActive;
 	bool logActive;
@@ -85,4 +100,8 @@ private:
 
 	sf::RectangleShape timeBar;
 
+	std::mt19937 gen;
+	std::uniform_int_distribution<int> distribBranch;
+	std::uniform_real_distribution<float> distribCloudSpeed;
+	std::uniform_real_distribution<float> distribCloudHeight;
 };

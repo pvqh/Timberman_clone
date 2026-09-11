@@ -1,18 +1,22 @@
 #include "game.h"
 #include <sstream>
+#include <algorithm>
+
+void setText(sf::Text& message, std::string_view text, float x, float y);
+void setPlayerPosition(sf::Sprite& player, side side);
+void setAxePosition(sf::Sprite& axe, side side);
 
 
 Game::Game()
 	: window(sf::VideoMode::getDesktopMode(), "Timberman", sf::State::Fullscreen)
-	, font("resources/fonts/KOMIKAP_.ttf")
 	, textureBackground("resources/graphics/background.png")
 	, textureCloud("resources/graphics/cloud.png")
 	, textureTree("resources/graphics/tree2.png")
+	, textureBranch("resources/graphics/branch.png")
 	, texturePlayer("resources/graphics/player.png")
 	, textureAxe("resources/graphics/axe.png")
 	, textureLog("resources/graphics/log.png")
 	, textureGrave("resources/graphics/rip.png")
-	, textureBranch("resources/graphics/branch.png")
 	, spriteBackground(textureBackground)
 	, spriteCloud(textureCloud)
 	, spriteTree(textureTree)
@@ -20,15 +24,6 @@ Game::Game()
 	, spriteAxe(textureAxe)
 	, spriteLog(textureLog)
 	, spriteGrave(textureGrave)
-	, chopBuffer("resources/sound/chop.wav")
-	, deathBuffer("resources/sound/death.wav")
-	, ootBuffer("resources/sound/out_of_time.wav")
-	, chopSound(chopBuffer)
-	, deathSound(deathBuffer)
-	, ootSound(ootBuffer)
-	, statisticText(font)
-	, scoreText(font, std::string("Score = 0"), 60)
-	, message(font)
 	, branches{
 		sf::Sprite(textureBranch)
 		,sf::Sprite(textureBranch)
@@ -37,13 +32,42 @@ Game::Game()
 		,sf::Sprite(textureBranch)
 		,sf::Sprite(textureBranch)
 	}
-	, statisticUpdateTime(sf::Time::Zero)
+	, font("resources/fonts/KOMIKAP_.ttf")
+	, chopBuffer("resources/sound/chop.wav")
+	, deathBuffer("resources/sound/death.wav")
+	, ootBuffer("resources/sound/out_of_time.wav")
+	, chopSound(chopBuffer)
+	, deathSound(deathBuffer)
+	, ootSound(ootBuffer)
+	, scoreText(font, std::string("Score = 0"), 60)
+	, message(font)
+	, statisticText(font)
 	, statisticNumFrame(0)
+	, score(0)
+	, statisticUpdateTime(sf::Time::Zero)
+	, cloudSpeed(0.0f)
+	, timeRemaining(MAX_TIME)
+	, cloudActive(false)
+	, logActive(false)
 	, gamePaused(true)
-	, timeBarWidthPerSecond(timeBarStartWidth / timeRemaining)
+	, playerSide(side::Left)
+	, branchPosition{
+		side::None
+		, side::None
+		, side::None
+		, side::None
+		, side::None
+		, side::None
+	}
+	, timeBar({0.0f, 0.0f})
+	, gen(std::random_device{}())
+	, distribBranch(0, 5)
+	, distribCloudSpeed(50,100)
+	, distribCloudHeight(50,100)
+	
 
 {
-	sf::View view(sf::FloatRect({ 0.f,0.f }, { 1920.f, 1080.f }));
+	sf::View view(sf::FloatRect({ 0.f,0.f }, { WINDOW_WIDTH, WINDOW_HEIGHT }));
 	window.setView(view);
 	window.setFramerateLimit(60);
 	reset();
@@ -51,8 +75,6 @@ Game::Game()
 
 void Game::run()
 {
-	srand((int)(time(0)));
-
 	while (window.isOpen())
 	{
 		sf::Time dt = clock.restart();
@@ -75,14 +97,15 @@ void Game::update(sf::Time dt)
 		if (timeRemaining <= 0.f)
 		{
 			gamePaused = true;
-			setText(message, "Out Of Time", (1920 / 2.f), (1080 / 2.f));
+			setText(message, "Out Of Time", (WINDOW_WIDTH / 2.f), (WINDOW_HEIGHT/ 2.f));
 			ootSound.play();
 		}
 
 		if (!cloudActive)
 		{
-			cloudSpeed = (rand() % 50) + 50.f;
-			float cloudHeight = (rand() % 100) + 50.f;
+			
+			cloudSpeed = distribCloudSpeed(gen);
+			float cloudHeight = distribCloudHeight(gen);
 
 			spriteCloud.setPosition(sf::Vector2f( 2000, cloudHeight ));
 			cloudActive = true;
@@ -109,7 +132,7 @@ void Game::update(sf::Time dt)
 			{
 				spriteGrave.setPosition(sf::Vector2f(1200, 750));
 			}
-			setText(message, "SQUISHED!!!", (1920 / 2.f), (1080 / 2.f));
+			setText(message, "SQUISHED!!!", (WINDOW_WIDTH / 2.f), (WINDOW_HEIGHT / 2.f));
 			deathSound.play();
 			logActive = false;
 			cloudActive = false;
@@ -122,18 +145,18 @@ void Game::update(sf::Time dt)
 		if (spriteLog.getPosition().x < -100 || spriteLog.getPosition().x > 2000)
 		{
 			logActive = false;
-			spriteLog.setPosition(sf::Vector2f(800, 760));
+			spriteLog.setPosition(sf::Vector2f(LOG_POSITION_X, LOG_POSITION_Y));
 		}
 	}
 }
 
 void Game::processEvent()
 {
-	while (const std::optional event = window.pollEvent())
+	while (const std::optional<sf::Event> event = window.pollEvent())
 	{
-		if (event->is<sf::Event::KeyReleased>() && !gamePaused)
+		if (event->getIf<sf::Event::KeyReleased>() && !gamePaused)
 		{
-			spriteAxe.setPosition(sf::Vector2f(2100, 830));
+			spriteAxe.setPosition(sf::Vector2f(2100, AXE_POSITION_Y));
 		}
 		if (event->is<sf::Event::Closed>()) {
 			window.close();
@@ -155,38 +178,11 @@ void Game::processEvent()
 			{
 				if (key->code == sf::Keyboard::Key::Left)
 				{
-					playerSide = side::Left;
-					score = score + 10;
-					if (timeRemaining > MAX_TIME)
-					{
-						timeRemaining = MAX_TIME;
-					}
-					else {
-						timeRemaining += (2.f / score) + 0.15f;
-					}
-					setPlayerAndAxe(spritePlayer, spriteAxe, side::Left);
-					updateBranches();
-					spriteLog.setPosition(sf::Vector2f(800, 760));
-					logActive = true;
-					chopSound.play();
+					chop(side::Left);
 				}
 				if (key->code == sf::Keyboard::Key::Right)
 				{
-					playerSide = side::Right;
-					score = score + 10;
-					if (timeRemaining > MAX_TIME)
-					{
-						timeRemaining = MAX_TIME;
-					}
-					else {
-						timeRemaining += (2.f / score) + 0.15f;
-					}
-					setPlayerAndAxe(spritePlayer, spriteAxe, side::Right);
-					updateBranches();
-					spriteLog.setPosition(sf::Vector2f(800, 760));
-					logActive = true;
-					chopSound.play();
-
+					chop(side::Right);
 				}
 			}
 		}
@@ -201,6 +197,9 @@ void Game::render()
 	window.draw(statisticText);
 	window.draw(spriteCloud);
 	window.draw(spriteTree);
+	for (const auto& branch : branches) {
+		window.draw(branch);
+	}
 
 	if (!gamePaused)
 	{
@@ -213,9 +212,6 @@ void Game::render()
 	{
 		window.draw(message);
 		window.draw(spriteGrave);
-	}
-	for (int i = 0; i < NUM_BRANCHES; i++) {
-		window.draw(branches[i]);
 	}
 	window.display();
 }
@@ -231,7 +227,8 @@ void Game::reset()
 
 	// Setup player and objects
 	playerSide = side::Left;
-	setPlayerAndAxe(spritePlayer, spriteAxe, side::Left);
+	setPlayerPosition(spritePlayer, side::Left);
+	setAxePosition(spriteAxe, side::Left);
 	spriteTree.setPosition(sf::Vector2f(1600 / 2.f, 0));
 	spriteGrave.setPosition(sf::Vector2f(2100, -2000));
 	spriteLog.setPosition(sf::Vector2f(2100, -2000));
@@ -240,13 +237,13 @@ void Game::reset()
 	// Setup timebar
 	timeBar.setSize({ timeBarStartWidth, timeBarHeight });
 	timeBar.setFillColor(sf::Color::Red);
-	timeBar.setPosition(sf::Vector2f(1920 / 2.f - timeBarStartWidth / 2.f, 980));
+	timeBar.setPosition(sf::Vector2f(WINDOW_WIDTH / 2.f - timeBarStartWidth / 2.f, 980));
 
 	// Setup texts
 	scoreText.setFillColor(sf::Color::White);
 	scoreText.setPosition({ 200, 200 });
 
-	setText(message, "Press Enter to start", (1920 / 2.f), (1080 / 2.f));
+	setText(message, "Press Enter to start", (WINDOW_WIDTH / 2.f), (WINDOW_HEIGHT / 2.f));
 
 	for (int i = 0; i < NUM_BRANCHES; i++)
 	{
@@ -264,8 +261,9 @@ void Game::updateBranches()
 		branchPosition[i] = branchPosition[i - 1];
 	}
 
+	// branches appear in probability 20/20/60
 
-	int r = (rand() % 5);
+	int r = distribBranch(gen);
 	switch (r)
 	{
 	case 0:
@@ -321,7 +319,7 @@ void Game::updateStatistics(sf::Time elapsedTime)
 
 
 
-void setText(sf::Text& message, std::string text, float x, float y)
+void setText(sf::Text& message, std::string_view text, float x, float y)
 {
 	message.setString(text);
 	sf::FloatRect textRect = message.getLocalBounds();
@@ -331,19 +329,43 @@ void setText(sf::Text& message, std::string text, float x, float y)
 
 }
 
-void setPlayerAndAxe(sf::Sprite& player, sf::Sprite& axe, side side)
+void setPlayerPosition(sf::Sprite& player, side side)
 {
 	if (side == side::Left)
 	{
 		player.setScale(sf::Vector2f(-1.f, 1.f));
-		player.setPosition(sf::Vector2f(PLAYER_POSITION_LEFT, 700));
-		axe.setPosition(sf::Vector2f(AXE_POSITION_LEFT, 830));
+		player.setPosition(sf::Vector2f(PLAYER_POSITION_LEFT, PLAYER_POSITION_Y));
 	}
 	if (side == side::Right)
 	{
 		player.setScale(sf::Vector2f(1.f, 1.f));
-		player.setPosition(sf::Vector2f(PLAYER_POSITION_RIGHT, 700));
-		axe.setPosition(sf::Vector2f(AXE_POSITION_RIGHT, 830));
+		player.setPosition(sf::Vector2f(PLAYER_POSITION_RIGHT, PLAYER_POSITION_Y));
 
 	}
+}
+
+void setAxePosition(sf::Sprite& axe, side side)
+{
+	if (side == side::Left)
+	{
+		axe.setPosition(sf::Vector2f(AXE_POSITION_LEFT, AXE_POSITION_Y));
+	}
+	if (side == side::Right)
+	{
+		axe.setPosition(sf::Vector2f(AXE_POSITION_RIGHT, AXE_POSITION_Y));
+	}
+}
+
+void Game::chop(side chopSide)
+{
+	playerSide = chopSide;
+	score = score + 10;
+	timeRemaining += (2.f / score) + 0.15f;
+	timeRemaining = std::min(MAX_TIME, timeRemaining);
+	setPlayerPosition(spritePlayer, chopSide);
+	setAxePosition(spriteAxe, chopSide);
+	updateBranches();
+	spriteLog.setPosition(sf::Vector2f(LOG_POSITION_X, LOG_POSITION_Y));
+	logActive = true;
+	chopSound.play();
 }
